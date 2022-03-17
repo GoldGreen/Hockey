@@ -1,11 +1,11 @@
 using Hockey.Server.BusinessLayer;
-using Hockey.Server.BusinessLayer.Configuration;
 using Hockey.Server.BusinessLayer.Hubs;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Serilog;
 
 namespace Hockey.Server
 {
@@ -22,7 +22,7 @@ namespace Hockey.Server
         {
             services.AddControllers();
             services.AddSignalR();
-            services.AddBusinessLayer(Configuration);            
+            services.AddBusinessLayer(Configuration);
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -33,8 +33,9 @@ namespace Hockey.Server
             }
 
             app.UseRouting();
-
             app.UseAuthorization();
+
+            app.UseSerilogRequestLogging();
 
             app.UseEndpoints(endpoints =>
             {

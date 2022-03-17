@@ -688,7 +688,8 @@ def main(_argv):
 
             jsonObj = HockeyObject()
             jsonObj.id = t_temp.track.track_id
-            jsonObj.bbox = [t_temp.bbox[0], t_temp.bbox[1]]
+            jsonObj.bbox = [t_temp.bbox[0], t_temp.bbox[1],
+                            t_temp.bbox[2], t_temp.bbox[3]]
 
             jsonObj.color = (255, 255, 255) if t_temp.track.get_class(
             ) == "ref" else t_temp.currColor

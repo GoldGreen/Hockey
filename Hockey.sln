@@ -15,9 +15,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hockey.Client", "Client\Hoc
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hockey.Shared", "Hockey.Shared\Hockey.Shared.csproj", "{7D989A26-37D4-4BAE-9C4E-A450B300D83B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hockey.Server.BusinessLayer", "Server\Hockey.Server.BusinessLayer\Hockey.Server.BusinessLayer.csproj", "{4552E23D-5831-4D7A-AFA1-2470925FA74C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hockey.Server.BusinessLayer", "Server\Hockey.Server.BusinessLayer\Hockey.Server.BusinessLayer.csproj", "{4552E23D-5831-4D7A-AFA1-2470925FA74C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hockey.Client.Shared", "Client\Hockey.Client.Shared\Hockey.Client.Shared.csproj", "{ED50A178-7277-454B-96AA-F0DA79229A25}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hockey.Client.Shared", "Client\Hockey.Client.Shared\Hockey.Client.Shared.csproj", "{ED50A178-7277-454B-96AA-F0DA79229A25}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hockey.Client.Main", "Client\Hockey.Client.Main\Hockey.Client.Main.csproj", "{74BC91E3-B3A6-4313-A2E1-B40E1240E010}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -49,6 +51,10 @@ Global
 		{ED50A178-7277-454B-96AA-F0DA79229A25}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ED50A178-7277-454B-96AA-F0DA79229A25}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ED50A178-7277-454B-96AA-F0DA79229A25}.Release|Any CPU.Build.0 = Release|Any CPU
+		{74BC91E3-B3A6-4313-A2E1-B40E1240E010}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{74BC91E3-B3A6-4313-A2E1-B40E1240E010}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{74BC91E3-B3A6-4313-A2E1-B40E1240E010}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{74BC91E3-B3A6-4313-A2E1-B40E1240E010}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -58,6 +64,7 @@ Global
 		{D661AD31-5661-440B-9D79-838C8FE4715C} = {DA895BD9-E89C-4356-AF20-E9D4BCC06536}
 		{4552E23D-5831-4D7A-AFA1-2470925FA74C} = {BF9C75D6-292D-48B8-ADDB-B4C97CAB6ABC}
 		{ED50A178-7277-454B-96AA-F0DA79229A25} = {DA895BD9-E89C-4356-AF20-E9D4BCC06536}
+		{74BC91E3-B3A6-4313-A2E1-B40E1240E010} = {DA895BD9-E89C-4356-AF20-E9D4BCC06536}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {46F085F5-FC05-4BE9-B3D9-90AE56D8972B}

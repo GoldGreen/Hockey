@@ -6,4 +6,11 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Hockey.Client.Main\Hockey.Client.Main.csproj" />
+    <ProjectReference Include="..\Hockey.Client.Shared\Hockey.Client.Shared.csproj" />
+  </ItemGroup>
+	<ItemGroup>
+		<None Include="appsettings.json" CopyToOutputDirectory="Always" />
+	</ItemGroup>
 </Project>
