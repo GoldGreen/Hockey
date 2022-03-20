@@ -1,6 +1,8 @@
 ﻿using Hockey.Client.Main.Abstractions;
 using Microsoft.Win32;
 using OpenCvSharp;
+using OpenCvSharp.Extensions;
+using OpenCvSharp.WpfExtensions;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using System;
@@ -12,6 +14,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace Hockey.Client.Main.ViewModels
 {
@@ -27,7 +30,7 @@ namespace Hockey.Client.Main.ViewModels
         [Reactive] public int FramesCount { get; set; }
         [Reactive] public string FilePath { get; set; }
 
-        public Mat Frame { get; set; }
+        [Reactive] public ImageSource Frame { get; set; }
 
         public ICommand OpenVideoCommand { get; }
         public ICommand StartDetectionCommand { get; }
@@ -36,7 +39,7 @@ namespace Hockey.Client.Main.ViewModels
         public ICommand ReversePausedCommand { get; }
         public ICommand CloseVideoCommand { get; }
 
-        private Subject<Unit> _onReadingCrash = new();
+        private readonly Subject<Unit> _onReadingCrash = new();
 
         public MainViewModel(IMainModel model)
         {
@@ -71,12 +74,14 @@ namespace Hockey.Client.Main.ViewModels
                 (
                     num =>
                     {
-                        Frame?.Dispose();
-                        Frame = new Mat();
+                        using Mat frame = new Mat();
                         VideoCapture.Set(VideoCaptureProperties.PosFrames, num);
-                        VideoCapture.Read(Frame);
-                        DrawPeople();
-                        this.RaisePropertyChanged(nameof(Frame));
+                        VideoCapture.Read(frame);
+                        DrawPeople(frame);
+                        Application.Current.Dispatcher.Invoke
+                        (
+                            () => Frame = frame.ToBitmapSource()
+                        );
                     }
                 );
 
@@ -92,15 +97,15 @@ namespace Hockey.Client.Main.ViewModels
         }
 
 
-        private void DrawPeople()
+        private void DrawPeople(Mat frame)
         {
-            if (Model.FramesInfo != null && Model.FramesInfo.TryGetValue(FrameNum, out var players))
+            if (Model.FramesInfo != null && Model.FramesInfo.TryGetValue(FrameNum, out System.Collections.Generic.IReadOnlyList<Hockey.Shared.Dto.PlayerDto> players))
             {
-                foreach (var player in players)
+                foreach (Hockey.Shared.Dto.PlayerDto player in players)
                 {
                     int[] bbox = player.Bbox.Select(x => (int)x).ToArray();
-                    var color = player.Color;
-                    Cv2.Rectangle(Frame, new(bbox[0], bbox[1]), new(bbox[2], bbox[3]), new Scalar(color[0], color[1], color[2]), 2);
+                    int[] color = player.Color;
+                    Cv2.Rectangle(frame, new(bbox[0], bbox[1]), new(bbox[2], bbox[3]), new Scalar(color[0], color[1], color[2]), 2);
                 }
             }
         }
@@ -140,19 +145,21 @@ namespace Hockey.Client.Main.ViewModels
                                 continue;
                             }
 
-                            Frame?.Dispose();
-                            Frame = new Mat();
+                            using Mat frame = new Mat();
 
                             FrameNum = VideoCapture.PosFrames;
 
-                            if (!VideoCapture.Read(Frame))
+                            if (!VideoCapture.Read(frame))
                             {
-                                this.RaisePropertyChanged(nameof(Frame));
                                 break;
                             }
 
-                            DrawPeople();
-                            this.RaisePropertyChanged(nameof(Frame));
+                            DrawPeople(frame);
+
+                            Application.Current.Dispatcher.Invoke
+                            (
+                                () => Frame = frame.ToBitmapSource()
+                            );
 
                             Thread.Sleep((int)(1000 / VideoCapture.Fps));
                         }
@@ -161,13 +168,6 @@ namespace Hockey.Client.Main.ViewModels
                     {
                         MessageBox.Show(e.Message);
                         _onReadingCrash.OnNext(Unit.Default);
-
-                        if (Frame?.IsDisposed ?? false)
-                        {
-                            Frame.Dispose();
-                        }
-
-                        Frame = null;
                     }
                     finally
                     {

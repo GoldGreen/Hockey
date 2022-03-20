@@ -49,7 +49,7 @@
                 Grid.Column="0"
                 Grid.Row="2"
                 Command="{Binding ReversePausedCommand}" Content="{Binding IsPaused, Converter={v:PauseTextConverter}}"/>
-            <Image Source="{Binding Frame, Converter={shC:MatConverter}}" Grid.Column="1" Grid.Row="1"/>
+            <Image Source="{Binding Frame}" Grid.Column="1" Grid.Row="1"/>
             <Slider Grid.Row="2"
                     Grid.Column="1"
                     Minimum="0"
