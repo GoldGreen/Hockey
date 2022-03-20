@@ -11,7 +11,7 @@ namespace Hockey.Client.Main.Abstractions
         int LastProcessedFrame { get; set; }
         IDictionary<int, IReadOnlyList<PlayerDto>> FramesInfo { get; set; }
 
-        Task StartDetectingVideo(string filePath);
+        Task StartDetectingVideo(VideoInfoDto videoInfoDto);
         Task<IDictionary<int, IReadOnlyList<PlayerDto>>> GetAllFrames();
     }
 }

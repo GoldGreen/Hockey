@@ -31,7 +31,11 @@
                 <Button Content="Открыть видео" Command="{Binding OpenVideoCommand}"/>
                 <Button Content="Начать обработку" Command="{Binding StartDetectionCommand}"/>
                 <Button Content="Принудительно загрузить информацию" Command="{Binding LoadFramesInfoCommand}"/>
-                <TextBlock Text="{Binding FilePath}"/>
+                <TextBlock Text="Название первой команды: "/>
+                <TextBox MinWidth="100" Text="{Binding FirstTeamName, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Text="Название второй команды: "/>
+                <TextBox MinWidth="100" Text="{Binding SecondTeamName, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Text="{Binding FilePath, StringFormat='Файл:{0}'}"/>
             </WrapPanel>
         </StackPanel>
         <Grid Grid.Row="1">

@@ -38,9 +38,9 @@ namespace Hockey.Client.Main.Models
                             .Cashe();
         }
 
-        public Task StartDetectingVideo(string filePath)
+        public Task StartDetectingVideo(VideoInfoDto videoInfoDto)
         {
-            return HockeyService.StarDetectingtVideo(new() { FileName = filePath });
+            return HockeyService.StarDetectingtVideo(videoInfoDto);
         }
 
         public async Task<IDictionary<int, IReadOnlyList<PlayerDto>>> GetAllFrames()

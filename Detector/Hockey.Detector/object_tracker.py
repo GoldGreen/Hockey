@@ -31,7 +31,7 @@ from typing import Match
 from functools import WRAPPER_UPDATES
 import sys
 import inspect
-
+from transliterate import translit
 import requests
 
 
@@ -119,27 +119,6 @@ def create_circular_mask(h, w):
     return np.mean(mask, axis=2) == 255
 
 
-def closest_colour(requested_colour):
-    min_colours = {}
-    # ЗАВИСИТ ОТ ВЕРСИИ БИБЛЫ, МБ ИМЯ ТОЛЬКО ЭТОЙ ФУНКЦИИ КАПСОМ
-    for key, name in webcolors.CSS3_HEX_TO_NAMES.items():
-        r_c, g_c, b_c = webcolors.hex_to_rgb(key)
-        rd = (r_c - requested_colour[0]) ** 2
-        gd = (g_c - requested_colour[1]) ** 2
-        bd = (b_c - requested_colour[2]) ** 2
-        min_colours[(rd + gd + bd)] = name
-    return min_colours[min(min_colours.keys())]
-
-
-def get_colour_name(requested_colour):
-    try:
-        closest_name = actual_name = webcolors.rgb_to_name(requested_colour)
-    except ValueError:
-        closest_name = closest_colour(requested_colour)
-        actual_name = None
-    return actual_name, closest_name
-
-
 def most_frequent(List):
     return max(set(List), key=List.count)
 
@@ -184,12 +163,20 @@ def get_script_dir(follow_symlinks=True):
     return os.path.dirname(path)
 
 
+flags.DEFINE_string('first_team_color', '204|204|204',
+                    'first team color (bgr)')
+flags.DEFINE_string('first_team_name', 'team #1', 'first team name')
+flags.DEFINE_string('second_team_color', '93|155|155',
+                    'second team color (bgr)')
+flags.DEFINE_string('second_team_name', 'team #2', 'second team name')
+
 flags.DEFINE_string('framework', 'tf', '(tf, tflite, trt')
 flags.DEFINE_string('weights', 'checkpoints/yolov4-416',
                     'path to weights file')
 flags.DEFINE_integer('size', 416, 'resize images to')
 flags.DEFINE_boolean('tiny', False, 'yolo or yolo-tiny')
 flags.DEFINE_string('model', 'yolov3', 'yolov3 or yolov4')
+# R'F:\VisualStudio\yolov4-deepsort-master\data\video\boba.mp4'
 flags.DEFINE_string('video', 'aboba',
                     'path to input video or set to 0 for webcam')
 flags.DEFINE_string('output', "data/output/result.mp4",
@@ -216,11 +203,17 @@ def main(_argv):
     if len(physical_devices) > 0:
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-    # firstCommandColor = (217, 201, 56)
-    # secondCommandColor = (204, 204, 204)
+    firstColorArray = list(map(int, FLAGS.first_team_color.split('|')))
+    secondColorArray = list(map(int, FLAGS.second_team_color.split('|')))
 
-    firstCommandColor = (41, 143, 183)
-    secondCommandColor = (214, 214, 143)
+    firstTeamColor = (
+        firstColorArray[0], firstColorArray[1], firstColorArray[2])
+    secondTeamColor = (
+        secondColorArray[0], secondColorArray[1], secondColorArray[2])
+
+    firstTeamName = FLAGS.first_team_name
+    secondTeamName = FLAGS.second_team_name
+    maxLen = 30000
 
     def unique_count_app(roi):
         h, w = roi.shape[:2]
@@ -235,16 +228,15 @@ def main(_argv):
                 maskShaped, axis=0, return_counts=True)
 
             for color in colors:
-                firstLen = colorLen(color, firstCommandColor)
-                secondLen = colorLen(color, secondCommandColor)
+                firstLen = colorLen(color, firstTeamColor)
+                secondLen = colorLen(color, secondTeamColor)
+
                 if firstLen < maxLen and firstLen < secondLen:
                     firstCount += 1
-                elif secondLen < maxLen:
+                elif secondLen < maxLen and secondLen < firstLen:
                     secondCount += 1
 
-        return firstCommandColor if firstCount > secondCount else secondCommandColor
-
-    maxLen = 30000
+        return (firstTeamColor, firstTeamName) if firstCount > secondCount else (secondTeamColor, secondTeamName)
 
     max_cosine_distance = 0.4
     nn_budget = None
@@ -277,13 +269,14 @@ def main(_argv):
     videoResponce.width = width
     videoResponce.height = height
 
-    requests.put("http://localhost:5000/hockey/start",
-                 data=json.dumps(videoResponce, default=lambda o: o.__dict__), headers=headers)
+    try:
+        requests.put("http://localhost:5000/hockey/start",
+                     data=json.dumps(videoResponce, default=lambda o: o.__dict__), headers=headers)
+    except:
+        print("can`t start")
 
     out = None
     outMap = None
-
-    cameraDistance = 100
 
     if FLAGS.output:
         fps = int(vid.get(cv2.CAP_PROP_FPS))
@@ -293,19 +286,6 @@ def main(_argv):
             FLAGS.outputMap, codec, fps, (415, int(416 * height/width)))
 
     frame_num = 0
-    heatMapWidth = 20
-    heatMapHeight = 15
-
-    heatMapMatrix = [[0 for _ in range(heatMapWidth)]
-                     for _ in range(heatMapHeight)]
-
-    heatMapChangedMatrix = [[False for _ in range(heatMapWidth)]
-                            for _ in range(heatMapHeight)]
-
-    maxMemoryWay = 20
-    heatMapMemoryMatrix = [[0 for _ in range(heatMapWidth)]
-                           for _ in range(heatMapHeight)]
-    addedHeatValue = 20
 
     while True:
         return_value, frame = vid.read()
@@ -511,27 +491,22 @@ def main(_argv):
             bbox = track.to_tlbr()
 
             roi = frame[int(bbox[1]):int(bbox[3]), int(bbox[0]):int(bbox[2])]
-            currColor = unique_count_app(roi)
-            t = namedtuple("t", ("track", "bbox", "currColor"))
-            result.append(t(track, bbox, currColor))
+            currColor, team = unique_count_app(roi)
+            t = namedtuple("t", ("track", "bbox", "currColor", "team"))
+            result.append(t(track, bbox, currColor, team))
 # end tracking
 
 # draw objects
         for t_temp in result:
             color = colors[int(t_temp.track.track_id) % len(colors)]
             color = [i * 255 for i in color]
+
             cv2.rectangle(frame, (int(t_temp.bbox[0]), int(t_temp.bbox[1])), (int(
                 t_temp.bbox[2]), int(t_temp.bbox[3])), color, 2)
 
-            actual_name, closest_name = get_colour_name(t_temp.currColor)
-            string = "{}-{} color: {}".format(t_temp.track.get_class(),
-                                              t_temp.track.track_id, closest_name)
-
-            cv2.rectangle(frame, (int(t_temp.bbox[0]), int(t_temp.bbox[1] - 30)),
-                          (int(t_temp.bbox[0]) + len(string) * 13, int(t_temp.bbox[1])), color, -1)
-
-            cv2.putText(frame, string, (int(t_temp.bbox[0]), int(
-                t_temp.bbox[1] - 10)), 0, 0.75, (50, 10, 24), 2)
+            if t_temp.track.get_class() != "ref":
+                cv2.putText(frame, t_temp.team, (int(t_temp.bbox[0]), int(
+                    t_temp.bbox[1] - 10)), cv2.FONT_HERSHEY_COMPLEX, 0.75, (50, 10, 24), 2)
 
         widthK = (width/trashWidth)
         heightK = (height/trashHeight)
@@ -629,49 +604,6 @@ def main(_argv):
         cv2.imshow("drawedPerspectve", drawedPerspectve)
 
 
-# heat map
-        for i in range(heatMapHeight):
-            for j in range(heatMapWidth):
-                heatMapChangedMatrix[i][j] = False
-
-        for t_temp in result:
-            # Добавить рассчёт центра по точке полученной из функции преобразования (точка на матрицу перспективы)
-            center = (t_temp.bbox[1] + (t_temp.bbox[3] - t_temp.bbox[1]) / 2,
-                      t_temp.bbox[0] + (t_temp.bbox[2] - t_temp.bbox[0]) / 2)
-
-            center = perspectPoingTransormation(
-                center[1], center[0], h)
-
-            center = (center[1] / height_d, center[0] / width_d)
-
-            if t_temp.track.get_class() != "ref" and center[0] >= 0 and center[0] < 1 and center[1] >= 0 and center[1] < 1:
-                center = (int(center[0] * heatMapHeight),
-                          int(center[1] * heatMapWidth))
-
-                heatMapChangedMatrix[center[0]][center[1]] = True
-
-                if heatMapMatrix[center[0]][center[1]] < 256:
-                    heatMapMatrix[center[0]][center[1]] += addedHeatValue
-
-        for i in range(heatMapHeight):
-            for j in range(heatMapWidth):
-                if heatMapChangedMatrix[i][j]:
-                    heatMapMemoryMatrix[i][j] = 0
-                else:
-                    heatMapMemoryMatrix[i][j] += 1
-
-        for i in range(heatMapHeight):
-            for j in range(heatMapWidth):
-                if heatMapMemoryMatrix[i][j] > maxMemoryWay:
-                    heatMapMatrix[i][j] -= addedHeatValue
-                    heatMapMemoryMatrix[i][j] -= 1
-
-        for i in range(heatMapHeight):
-            for j in range(heatMapWidth):
-                if heatMapMatrix[i][j] < 0:
-                    heatMapMatrix[i][j] = 0
-# end heat map
-
 # end draw field
 
         jsonRes = HockeyResult()
@@ -691,11 +623,10 @@ def main(_argv):
             jsonObj.bbox = [t_temp.bbox[0], t_temp.bbox[1],
                             t_temp.bbox[2], t_temp.bbox[3]]
 
-            jsonObj.color = (255, 255, 255) if t_temp.track.get_class(
-            ) == "ref" else t_temp.currColor
-
             jsonObj.type = t_temp.track.get_class()
-            jsonObj.center = center
+            jsonObj.team = t_temp.team
+            jsonObj.fieldCoordinate = (
+                center[0] / width_d, center[1] / height_d)
 
             jsonRes.players.append(jsonObj)
 
@@ -709,8 +640,11 @@ def main(_argv):
                 cv2.putText(field, str(t_temp.track.track_id),
                             (center[0] - 4, center[1] + 4), 0, 0.45, (255, 0, 0), 2)
 
-        requests.put("http://localhost:5000/hockey/frame",
-                     data=json.dumps(jsonRes, default=lambda o: o.__dict__), headers=headers)
+        try:
+            requests.put("http://localhost:5000/hockey/frame",
+                         data=json.dumps(jsonRes, default=lambda o: o.__dict__), headers=headers)
+        except:
+            print("can`t srame")
 
         for point in [closestMiniP, cameraLeft, cameraRight, closestLeftUpCamera, closestRightUpCamera]:
             cv2.ellipse(field, point, (15, 15), 0,
@@ -724,29 +658,6 @@ def main(_argv):
 
         cv2.rectangle(field, (0, 0),
                       (width_d, height_d), (0, 33, 55), 3)
-
-# draw heat map
-        heatMap = get_drawed_field(frame, original_w - width_d,
-                                   original_w, 0, height_d,
-                                   width_d, height_d)
-
-        heatMapDrawingWidth = int(width_d / heatMapWidth)
-        heatMapDrawingHeight = int(height_d / heatMapHeight)
-
-        for (i, heatMapArray) in enumerate(heatMapMatrix):
-            for (j, value) in enumerate(heatMapArray):
-                if(value != 0):
-                    pt1 = (j*heatMapDrawingWidth, i*heatMapDrawingHeight)
-                    pt2 = (pt1[0] + heatMapDrawingWidth,
-                           pt1[1] + heatMapDrawingHeight)
-
-                    cv2.rectangle(heatMap, pt1, pt2,
-                                  (value, 0, 255 - value), -1
-                                  )
-
-        cv2.rectangle(heatMap, (0, 0),
-                      (width_d, height_d), (0, 33, 55), 3)
-# end draw heat map
 
         fps = 1.0 / (time.time() - start_time)
         print("FPS: %.2f" % fps)

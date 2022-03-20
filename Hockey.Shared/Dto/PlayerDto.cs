@@ -5,11 +5,9 @@
         public int Id { get; set; }
 
         public string Type { get; set; }
-
-        public int[] Color { get; set; }
+        public string Team { get; set; }
 
         public double[] Bbox { get; set; }
-
-        public double[] Center { get; set; }
+        public double[] FieldCoordinate { get; set; }
     }
 }

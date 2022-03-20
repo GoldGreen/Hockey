@@ -28,7 +28,10 @@ namespace Hockey.Client.Main.ViewModels
         [Reactive] public int FrameNum { get; set; }
 
         [Reactive] public int FramesCount { get; set; }
+
         [Reactive] public string FilePath { get; set; }
+        [Reactive] public string FirstTeamName { get; set; }
+        [Reactive] public string SecondTeamName { get; set; }
 
         [Reactive] public ImageSource Frame { get; set; }
 
@@ -58,7 +61,15 @@ namespace Hockey.Client.Main.ViewModels
 
             StartDetectionCommand = ReactiveCommand.CreateFromTask
             (
-                () => Model.StartDetectingVideo(FilePath),
+                () => Model.StartDetectingVideo
+                (
+                    new()
+                    {
+                        FileName = FilePath,
+                        FirstTeamName = FirstTeamName,
+                        SecondTeamName = SecondTeamName
+                    }
+                ),
                 this.WhenAnyValue(x => x.FilePath).Select(x => !string.IsNullOrWhiteSpace(x))
             );
 
@@ -74,7 +85,7 @@ namespace Hockey.Client.Main.ViewModels
                 (
                     num =>
                     {
-                        using Mat frame = new Mat();
+                        using Mat frame = new();
                         VideoCapture.Set(VideoCaptureProperties.PosFrames, num);
                         VideoCapture.Read(frame);
                         DrawPeople(frame);
@@ -101,12 +112,39 @@ namespace Hockey.Client.Main.ViewModels
         {
             if (Model.FramesInfo != null && Model.FramesInfo.TryGetValue(FrameNum, out System.Collections.Generic.IReadOnlyList<Hockey.Shared.Dto.PlayerDto> players))
             {
-                foreach (Hockey.Shared.Dto.PlayerDto player in players)
+                foreach (var player in players)
                 {
                     int[] bbox = player.Bbox.Select(x => (int)x).ToArray();
-                    int[] color = player.Color;
-                    Cv2.Rectangle(frame, new(bbox[0], bbox[1]), new(bbox[2], bbox[3]), new Scalar(color[0], color[1], color[2]), 2);
+
+                    if (player.Team is not null)
+                    {
+                        Cv2.PutText(frame,
+                                    player.Team,
+                                    new(bbox[0], bbox[1] - 10),
+                                    HersheyFonts.HersheySimplex,
+                                    0.75,
+                                    new(50, 10, 24),
+                                    2);
+                    }
+
+                    Cv2.Rectangle(frame, new(bbox[0], bbox[1]), new(bbox[2], bbox[3]), ColorByTeam(player.Team), 2);
                 }
+            }
+        }
+
+        private Scalar ColorByTeam(string team)
+        {
+            if (team == FirstTeamName)
+            {
+                return new Scalar(255, 0, 0);
+            }
+            else if (team == SecondTeamName)
+            {
+                return new Scalar(0, 255, 0);
+            }
+            else
+            {
+                return new Scalar(0, 0, 0);
             }
         }
 
