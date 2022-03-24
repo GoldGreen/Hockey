@@ -5,11 +5,11 @@ namespace Hockey.Client.Shared.Extensions
 {
     public static class ObservableExtensions
     {
-        private static List<IDisposable> _disposables = new();
+        private static List<IDisposable> isposables = new();
 
         public static IDisposable Cashe(this IDisposable disposable)
         {
-            _disposables.Add(disposable);
+            isposables.Add(disposable);
             return disposable;
         }
     }
