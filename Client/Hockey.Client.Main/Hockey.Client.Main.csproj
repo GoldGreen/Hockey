@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net5.0-windows</TargetFramework>
@@ -13,5 +13,5 @@
   <ItemGroup>
     <ProjectReference Include="..\Hockey.Client.Shared\Hockey.Client.Shared.csproj" />
   </ItemGroup>
-
+	
 </Project>

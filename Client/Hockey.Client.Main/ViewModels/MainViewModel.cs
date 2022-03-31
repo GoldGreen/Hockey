@@ -12,6 +12,7 @@ using System.Reactive.Subjects;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -25,16 +26,26 @@ namespace Hockey.Client.Main.ViewModels
         [Reactive] public bool IsPaused { get; set; } = true;
 
         [Reactive] public int FrameNum { get; set; }
+        [Reactive] public bool FrameToMinimapFrame { get; set; } = true;
         [Reactive] public int MinimapFrameNum { get; set; }
 
         [Reactive] public int FramesCount { get; set; }
-
         [Reactive] public string FilePath { get; set; }
-        [Reactive] public string FirstTeamName { get; set; }
-        [Reactive] public string SecondTeamName { get; set; }
 
-        [Reactive] public ImageSource Frame { get; set; }
-        [Reactive] public ImageSource Minimap { get; set; }
+        [Reactive] public string FirstTeamName { get; set; }
+        [Reactive] public Color FirstTeamColor { get; set; } = Color.FromRgb(204, 204, 204);
+        public ICommand PickFirstColorCommand { get; }
+        [Reactive] public bool FirstColorPicked { get; set; }
+
+        [Reactive] public string SecondTeamName { get; set; }
+        [Reactive] public Color SecondTeamColor { get; set; } = Color.FromRgb(155, 155, 93);
+        [Reactive] public bool SecondColorPicked { get; set; }
+
+        [Reactive] public ImageSource FrameSource { get; set; }
+        [Reactive] public ImageSource MinimapSource { get; set; }
+
+        [Reactive] private Mat Frame { get; set; }
+        public ICommand PickSecondtColorCommand { get; }
 
         public ICommand OpenVideoCommand { get; }
         public ICommand StartDetectionCommand { get; }
@@ -43,15 +54,73 @@ namespace Hockey.Client.Main.ViewModels
         public ICommand ReversePausedCommand { get; }
         public ICommand CloseVideoCommand { get; }
 
+        public ICommand PickColorCommand { get; }
+
+
         private readonly Subject<Unit> _onReadingCrash = new();
+
+        private readonly Mat _minimap = new("Resources/minimap.png");
 
         public MainViewModel(IMainModel model)
         {
             Model = model;
+
             OpenVideoCommand = ReactiveCommand.Create
             (
                 OpenVideo,
                 this.WhenAnyValue(x => x.VideoCapture, x => x.IsPaused, (cap, isP) => cap == null && isP)
+            );
+
+            PickFirstColorCommand = ReactiveCommand.Create
+            (
+                () => { FirstColorPicked = true; },
+                this.WhenAnyValue(x => x.VideoCapture,
+                                  x => x.IsPaused,
+                                  x => x.FirstColorPicked,
+                                  x => x.SecondColorPicked,
+                                  (cap, isP, pf, ps) => cap != null && isP && !pf && !ps)
+            );
+
+            PickSecondtColorCommand = ReactiveCommand.Create
+            (
+                () => { SecondColorPicked = true; },
+                this.WhenAnyValue(x => x.VideoCapture,
+                                  x => x.IsPaused,
+                                  x => x.FirstColorPicked,
+                                  x => x.SecondColorPicked,
+                                  (cap, isP, pf, ps) => cap != null && isP && !pf && !ps)
+            );
+
+            PickColorCommand = ReactiveCommand.Create<MouseButtonEventArgs>
+            (
+                x =>
+                {
+                    var image = x.Source as Image;
+
+                    var pos = x.GetPosition(image);
+                    (byte b, byte g, byte r) = Frame.At<Vec3b>
+                    (
+                        (int)(pos.Y / image.ActualHeight * Frame.Height),
+                        (int)(pos.X / image.ActualWidth * Frame.Width)
+                    );
+
+                    var color = Color.FromRgb(r, g, b);
+
+                    if (FirstColorPicked)
+                    {
+                        FirstColorPicked = false;
+                        FirstTeamColor = color;
+                    }
+                    else if (SecondColorPicked)
+                    {
+                        SecondColorPicked = false;
+                        SecondTeamColor = color;
+                    }
+                },
+                this.WhenAnyValue(x => x.FirstColorPicked,
+                                  x => x.SecondColorPicked,
+                                  x => x.Frame,
+                                  (pf, ps, fr) => (pf || ps) && fr != null)
             );
 
             ReversePausedCommand = ReactiveCommand.Create
@@ -68,10 +137,25 @@ namespace Hockey.Client.Main.ViewModels
                     {
                         FileName = FilePath,
                         FirstTeamName = FirstTeamName,
-                        SecondTeamName = SecondTeamName
+                        FirstTeamColor = new byte[]
+                        {
+                            FirstTeamColor.B,
+                            FirstTeamColor.G,
+                            FirstTeamColor.R
+                        },
+                        SecondTeamName = SecondTeamName,
+                        SecondTeamColor = new byte[]
+                        {
+                            SecondTeamColor.B,
+                            SecondTeamColor.G,
+                            SecondTeamColor.R
+                        }
                     }
                 ),
-                this.WhenAnyValue(x => x.FilePath).Select(x => !string.IsNullOrWhiteSpace(x))
+                this.WhenAnyValue(x => x.FilePath,
+                                  x => x.FirstTeamName,
+                                  x => x.SecondTeamName,
+                                  (f, fn, sn) => new[] { f, fn, sn }.All(x => !string.IsNullOrWhiteSpace(x)))
             );
 
             LoadFramesInfoCommand = ReactiveCommand.CreateFromTask
@@ -80,24 +164,27 @@ namespace Hockey.Client.Main.ViewModels
             );
 
             this.WhenAnyValue(x => x.FrameNum)
-                .Where(_ => IsPaused && (!VideoCapture?.IsDisposed ?? false))
+                .Where(_ => IsPaused && VideoCapture != null)
                 .Throttle(TimeSpan.FromMilliseconds(100))
+                .ObserveOnDispatcher()
                 .Subscribe
                 (
                     num =>
                     {
-                        using Mat frame = new();
+                        Frame = new();
                         VideoCapture.Set(VideoCaptureProperties.PosFrames, num);
-                        VideoCapture.Read(frame);
-                        DrawPeople(frame);
+                        VideoCapture.Read(Frame);
+                        DrawPeople(Frame);
                         Application.Current.Dispatcher.Invoke
                         (
-                            () => Frame = frame.ToBitmapSource()
+                            () => FrameSource = Frame.ToBitmapSource()
                         );
                     }
                 );
 
-            this.WhenAnyValue(x => x.FrameNum)
+            this.WhenAnyValue(x => x.FrameNum, x => x.FrameToMinimapFrame, (num, use) => (num, use))
+                .Where(x => x.use)
+                .Select(x => x.num)
                 .ObserveOnDispatcher()
                 .Subscribe(x => MinimapFrameNum = x);
 
@@ -142,48 +229,38 @@ namespace Hockey.Client.Main.ViewModels
 
         public void DrawMinimap()
         {
-            double width = 400;
-            double height = 220;
-            using Mat minimap = new((int)height, (int)width, MatType.CV_8UC3);
+            using var minimap = _minimap.Clone();
 
-            minimap.SetTo(new(108, 124, 142));
-            Cv2.Line(minimap, new(width / 2, 0), new(width / 2, height), new(169, 32, 62), 3);
-            Cv2.Line(minimap, new(2 * width / 5, 0), new(2 * width / 5, height), new(80, 149, 182), 3);
-            Cv2.Line(minimap, new(3 * width / 5, 0), new(3 * width / 5, height), new(80, 149, 182), 3);
-            Cv2.Line(minimap, new(width / 10, 0), new(width / 10, height), new(169, 32, 62), 2);
-            Cv2.Line(minimap, new(9 * width / 10, 0), new(9 * width / 10, height), new(169, 32, 62), 2);
-
-            Cv2.Ellipse(minimap, new(width / 2, height / 2), new(23, 23), 0, 0, 360, new(80, 149, 182), 2);
-
-            Cv2.Ellipse(minimap, new(4 * width / 5, 4 * height / 5), new(23, 23), 0, 0, 360, new(169, 32, 62), 2);
-            Cv2.Ellipse(minimap, new(4 * width / 5, height / 5), new(23, 23), 0, 0, 360, new(169, 32, 62), 2);
-
-            Cv2.Ellipse(minimap, new(width / 5, height / 5), new(23, 23), 0, 0, 360, new(169, 32, 62), 2);
-            Cv2.Ellipse(minimap, new(width / 5, 4 * height / 5), new(23, 23), 0, 0, 360, new(169, 32, 62), 2);
-            Cv2.Ellipse(minimap, new(width / 5, height / 5), new(23, 23), 0, 0, 360, new(169, 32, 62), 2);
-
-
-            Cv2.Ellipse(minimap, new(width / 10, height / 2), new(23, 23), 0, 270, 450, new(80, 149, 182), 2);
-            Cv2.Ellipse(minimap, new(9 * width / 10, height / 2), new(23, 23), 0, 90, 270, new(80, 149, 182), 2);
+            double width = minimap.Width;
+            double height = minimap.Height;
 
             if (Model.FramesInfo != null && Model.FramesInfo.TryGetValue(MinimapFrameNum, out var players))
             {
-                foreach (var player in players)
+                foreach (var player in players.Where(x => x.Type == "player" || x.Type == "keeper"))
                 {
+                    Color color = player.Team == FirstTeamName ? FirstTeamColor : SecondTeamColor;
 
-                    Cv2.Ellipse(minimap, new(player.FieldCoordinate[0] * width, player.FieldCoordinate[1] * height), new(5, 5), 0, 0, 360, new(0, 0, 255), -1);
-                    Cv2.PutText(minimap,
-                                player.Id.ToString(),
-                                new OpenCvSharp.Point(player.FieldCoordinate[0] * width, player.FieldCoordinate[1] * height),
-                                HersheyFonts.HersheySimplex,
-                                0.75,
-                                new(0, 0, 0),
-                                1);
+                    Cv2.Ellipse(minimap,
+                               new(player.FieldCoordinate[0] * width, player.FieldCoordinate[1] * height),
+                               new(60, 60),
+                               0,
+                               0,
+                               360,
+                               new(0, 0, 0),
+                               5);
 
+                    Cv2.Ellipse(minimap,
+                                new(player.FieldCoordinate[0] * width, player.FieldCoordinate[1] * height),
+                                new(50, 50),
+                                0,
+                                0,
+                                360,
+                                new(color.B, color.G, color.R),
+                                -1);
                 }
             }
 
-            Minimap = minimap.ToBitmapSource();
+            MinimapSource = minimap.ToBitmapSource();
         }
 
 
@@ -238,20 +315,20 @@ namespace Hockey.Client.Main.ViewModels
                                 continue;
                             }
 
-                            using var frame = new Mat();
+                            Frame = new Mat();
 
                             FrameNum = VideoCapture.PosFrames;
 
-                            if (!VideoCapture.Read(frame))
+                            if (!VideoCapture.Read(Frame))
                             {
                                 break;
                             }
 
-                            DrawPeople(frame);
+                            DrawPeople(Frame);
 
                             Application.Current.Dispatcher.Invoke
                             (
-                                () => Frame = frame.ToBitmapSource()
+                                () => FrameSource = Frame.ToBitmapSource()
                             );
 
                             Thread.Sleep((int)(1000 / VideoCapture.Fps));

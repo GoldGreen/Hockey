@@ -3,6 +3,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
     xmlns:local="clr-namespace:Hockey.Client.Main.Views"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"
@@ -10,8 +11,8 @@
     xmlns:v="clr-namespace:Hockey.Client.Main.Views"
     xmlns:vm="clr-namespace:Hockey.Client.Main.ViewModels"
     d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
-    d:DesignHeight="450"
-    d:DesignWidth="800"
+    d:DesignHeight="900"
+    d:DesignWidth="1280"
     Background="{DynamicResource MaterialDesignPaper}"
     FontFamily="{DynamicResource MaterialDesignFont}"
     TextElement.FontSize="13"
@@ -20,70 +21,193 @@
     TextOptions.TextFormattingMode="Ideal"
     TextOptions.TextRenderingMode="Auto"
     mc:Ignorable="d">
+    <UserControl.Resources>
+        <Style BasedOn="{StaticResource MaterialDesignCaptionTextBlock}" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="FontSize" Value="20" />
+        </Style>
+    </UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto" />
             <RowDefinition />
         </Grid.RowDefinitions>
         <StackPanel Grid.Row="0">
-            <Expander Header="Обработка видео">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="auto" />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <TextBlock VerticalAlignment="Center">
+                    <Run Text="Обработано: (" />
+                    <Run Text="{Binding Model.LastProcessedFrame}" />
+                    <Run Text="/" />
+                    <Run Text="{Binding Model.VideoInfo.FramesCount}" />
+                    <Run Text=")   " />
+                </TextBlock>
                 <ProgressBar
-                    Height="30"
+                    Grid.Column="1"
+                    Height="15"
                     Maximum="{Binding Model.VideoInfo.FramesCount}"
                     Value="{Binding Model.LastProcessedFrame}" />
-            </Expander>
-            <WrapPanel>
-                <Button Command="{Binding OpenVideoCommand}" Content="Открыть видео" />
-                <Button Command="{Binding StartDetectionCommand}" Content="Начать обработку" />
-                <Button Command="{Binding LoadFramesInfoCommand}" Content="Принудительно загрузить информацию" />
-                <TextBlock Text="Название первой команды: " />
-                <TextBox MinWidth="100" Text="{Binding FirstTeamName, UpdateSourceTrigger=PropertyChanged}" />
-                <TextBlock Text="Название второй команды: " />
-                <TextBox MinWidth="100" Text="{Binding SecondTeamName, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
+            <StackPanel>
+                <StackPanel.Resources>
+                    <Style BasedOn="{StaticResource MaterialDesignFlatDarkBgButton}" TargetType="Button">
+                        <Setter Property="Margin" Value="5,0,5,0" />
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                        <Setter Property="md:ButtonAssist.CornerRadius" Value="10" />
+                    </Style>
+                    <Style BasedOn="{StaticResource MaterialDesignFloatingHintTextBox}" TargetType="TextBox">
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                        <Setter Property="Margin" Value="5,0,5,0" />
+                        <Setter Property="FontSize" Value="15" />
+                        <Setter Property="MinWidth" Value="150" />
+                        <Setter Property="md:TextFieldAssist.HasClearButton" Value="True" />
+                    </Style>
+
+                    <Style TargetType="md:ColorPicker">
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                        <Setter Property="Width" Value="200" />
+                        <Setter Property="Height" Value="60" />
+                    </Style>
+                </StackPanel.Resources>
+                <WrapPanel>
+                    <Button Command="{Binding OpenVideoCommand}" Content="Открыть видео" />
+                    <Button Command="{Binding StartDetectionCommand}" Content="Начать обработку" />
+                    <Button Command="{Binding LoadFramesInfoCommand}" Content="Принудительно загрузить информацию" />
+                </WrapPanel>
+                <WrapPanel>
+                    <TextBox
+                        md:HintAssist.Background="{Binding FirstTeamColor, Converter={shC:ColorConverter}}"
+                        md:HintAssist.Hint="Первая команда"
+                        Text="{Binding FirstTeamName, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Command="{Binding PickFirstColorCommand}" Content="Выбрать цвет:" />
+                    <md:ColorPicker Color="{Binding FirstTeamColor, Mode=TwoWay}" />
+                </WrapPanel>
+                <WrapPanel>
+                    <TextBox
+                        md:HintAssist.Background="{Binding SecondTeamColor, Converter={shC:ColorConverter}}"
+                        md:HintAssist.Hint="Вторая команда"
+                        Text="{Binding SecondTeamName, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Command="{Binding PickSecondtColorCommand}" Content="Выбрать цвет:" />
+                    <md:ColorPicker Color="{Binding SecondTeamColor, Mode=TwoWay}" />
+                </WrapPanel>
                 <TextBlock Text="{Binding FilePath, StringFormat='Файл:{0}'}" />
-            </WrapPanel>
+            </StackPanel>
         </StackPanel>
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition />
-                <ColumnDefinition Width="4*" />
+                <ColumnDefinition Width="2*" />
                 <ColumnDefinition />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
+                <RowDefinition Height="auto" />
                 <RowDefinition />
-                <RowDefinition Height="6*" />
-                <RowDefinition />
+                <RowDefinition Height="auto" />
             </Grid.RowDefinitions>
-            <Button
-                Grid.Row="2"
+            <Border
+                Grid.Row="1"
                 Grid.Column="0"
-                Command="{Binding ReversePausedCommand}"
-                Content="{Binding IsPaused, Converter={v:PauseTextConverter}}" />
-            <Image
-                Grid.Row="1"
-                Grid.Column="1"
-                Source="{Binding Frame}" />
-            <Image
-                Grid.Row="1"
-                Grid.Column="2"
-                Source="{Binding Minimap}"
-                Stretch="Fill" />
-            <UniformGrid
-                Grid.Row="2"
-                Grid.Column="1"
-                Columns="1">
+                BorderBrush="{StaticResource MaterialDesignBody}"
+                BorderThickness="3">
+                <Image Source="{Binding FrameSource}" Stretch="Uniform">
+                    <Image.Style>
+                        <Style TargetType="Image">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding FirstColorPicked}" Value="True">
+                                    <Setter Property="Cursor" Value="Hand" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding SecondColorPicked}" Value="True">
+                                    <Setter Property="Cursor" Value="Hand" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Image.Style>
+                    <i:Interaction.Triggers>
+                        <i:EventTrigger EventName="MouseLeftButtonDown">
+                            <i:InvokeCommandAction Command="{Binding PickColorCommand}" PassEventArgsToCommand="True" />
+                        </i:EventTrigger>
+                    </i:Interaction.Triggers>
+                </Image>
+            </Border>
+            <Grid Grid.Row="2" Grid.Column="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="auto" />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <Button
+                    Grid.Column="0"
+                    VerticalAlignment="Center"
+                    Command="{Binding ReversePausedCommand}">
+                    <Button.Style>
+                        <Style BasedOn="{StaticResource MaterialDesignFloatingActionMiniButton}" TargetType="Button">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsPaused}" Value="False">
+                                    <Setter Property="Content">
+                                        <Setter.Value>
+                                            <md:PackIcon Kind="Pause" />
+                                        </Setter.Value>
+                                    </Setter>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsPaused}" Value="True">
+                                    <Setter Property="Content">
+                                        <Setter.Value>
+                                            <md:PackIcon Kind="Play" />
+                                        </Setter.Value>
+                                    </Setter>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
                 <Slider
-                    Height="30"
+                    Grid.Column="1"
+                    Margin="20,0,0,0"
+                    VerticalAlignment="Center"
                     IsEnabled="{Binding IsPaused}"
                     Maximum="{Binding FramesCount}"
                     Minimum="0"
                     Value="{Binding FrameNum}" />
+            </Grid>
+            <Grid Grid.Row="1" Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="200" />
+                    <RowDefinition Height="auto" />
+                    <RowDefinition Height="auto" />
+                    <RowDefinition />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="auto" />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <Image
+                    Grid.Row="0"
+                    Grid.Column="0"
+                    Grid.ColumnSpan="2"
+                    Source="{Binding MinimapSource}"
+                    Stretch="Uniform" />
+                <TextBlock
+                    Grid.Row="1"
+                    Grid.Column="0"
+                    Text="Вместе с основным кадром: " />
+                <ToggleButton
+                    Grid.Row="1"
+                    Grid.Column="1"
+                    Margin="10,0,0,0"
+                    HorizontalAlignment="Left"
+                    IsChecked="{Binding FrameToMinimapFrame}" />
                 <Slider
-                    Height="30"
+                    Grid.Row="2"
+                    Grid.Column="0"
+                    Grid.ColumnSpan="2"
+                    Margin="5,0,5,0"
+                    VerticalAlignment="Center"
+                    IsEnabled="{Binding IsPaused}"
                     Maximum="{Binding FramesCount}"
                     Minimum="0"
                     Value="{Binding MinimapFrameNum}" />
-            </UniformGrid>
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>

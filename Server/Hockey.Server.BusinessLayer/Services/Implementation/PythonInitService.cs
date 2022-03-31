@@ -26,11 +26,13 @@ namespace Hockey.Server.BusinessLayer.Services.Implementation
             {
                 ("video", videoInfoDto.FileName),
                 ("first_team_name", videoInfoDto.FirstTeamName),
-                ("second_team_name", videoInfoDto.SecondTeamName)
+                ("second_team_name", videoInfoDto.SecondTeamName),
+                ("first_team_color", string.Join('|', videoInfoDto.FirstTeamColor)),
+                ("second_team_color", string.Join('|', videoInfoDto.SecondTeamColor))
             };
 
-            pythonInfo.Arguments = $@"{PythonInit.DetectorPath} {string.Join(' ', args.Where(x => !string.IsNullOrWhiteSpace(x.value))
-                                                                                      .Select(x => $"--{x.name} {x.value}"))}";
+            string argsStr = string.Join(' ', args.Select(x => $"--{x.name} \"{x.value}\""));
+            pythonInfo.Arguments = $"\"{PythonInit.DetectorPath}\" {argsStr}";
             pythonInfo.CreateNoWindow = false;
             pythonInfo.UseShellExecute = true;
 
