@@ -164,10 +164,10 @@ def get_script_dir(follow_symlinks=True):
 
 
 flags.DEFINE_string('first_team_color', '204|204|204',
-                    'first team color (bgr)')
+                    'first team color (rgb)')
 flags.DEFINE_string('first_team_name', 'team #1', 'first team name')
 flags.DEFINE_string('second_team_color', '93|155|155',
-                    'second team color (bgr)')
+                    'second team color (rbg)')
 flags.DEFINE_string('second_team_name', 'team #2', 'second team name')
 
 flags.DEFINE_string('framework', 'tf', '(tf, tflite, trt')
@@ -177,7 +177,7 @@ flags.DEFINE_integer('size', 416, 'resize images to')
 flags.DEFINE_boolean('tiny', False, 'yolo or yolo-tiny')
 flags.DEFINE_string('model', 'yolov3', 'yolov3 or yolov4')
 # R'F:\VisualStudio\yolov4-deepsort-master\data\video\boba.mp4'
-flags.DEFINE_string('video', 'aboba',
+flags.DEFINE_string('video', r'F:/VisualStudio/yolov4-deepsort-master/data/video/boba.mp4',
                     'path to input video or set to 0 for webcam')
 flags.DEFINE_string('output', "data/output/result.mp4",
                     'path to output video')
@@ -383,11 +383,11 @@ def main(_argv):
         closestRightUpP = findPointWithMinDist(rightUpPoints, closestP, maxP)
         closestLeftUpP = findPointWithMinDist(lefttUpPoints, closestP, minP)
 
-        heightDelta = 15
-        closestP = (closestP[0], closestP[1] + heightDelta)
-        closestRightUpP = (
-            closestRightUpP[0], closestRightUpP[1] + heightDelta)
-        closestLeftUpP = (closestLeftUpP[0], closestLeftUpP[1] + heightDelta)
+        # heightDelta = 15
+        # closestP = (closestP[0], closestP[1] + heightDelta)
+        # closestRightUpP = (
+        #     closestRightUpP[0], closestRightUpP[1] + heightDelta)
+        # closestLeftUpP = (closestLeftUpP[0], closestLeftUpP[1] + heightDelta)
 
         cv2.drawContours(angleFrame, contours, -1,
                          (255, 0, 0), thickness=3, lineType=cv2.LINE_AA)
@@ -491,22 +491,24 @@ def main(_argv):
             bbox = track.to_tlbr()
 
             roi = frame[int(bbox[1]):int(bbox[3]), int(bbox[0]):int(bbox[2])]
+
             currColor, team = unique_count_app(roi)
             t = namedtuple("t", ("track", "bbox", "currColor", "team"))
-            result.append(t(track, bbox, currColor, team))
+            result.append(t(track, bbox, currColor,
+                          "" if track.get_class() == "ref" else team))
 # end tracking
 
 # draw objects
         for t_temp in result:
-            color = colors[int(t_temp.track.track_id) % len(colors)]
-            color = [i * 255 for i in color]
-
-            cv2.rectangle(frame, (int(t_temp.bbox[0]), int(t_temp.bbox[1])), (int(
-                t_temp.bbox[2]), int(t_temp.bbox[3])), color, 2)
-
             if t_temp.track.get_class() != "ref":
+                cv2.rectangle(frame, (int(t_temp.bbox[0]), int(t_temp.bbox[1])), (int(
+                    t_temp.bbox[2]), int(t_temp.bbox[3])), t_temp.currColor, 2)
+
                 cv2.putText(frame, t_temp.team, (int(t_temp.bbox[0]), int(
                     t_temp.bbox[1] - 10)), cv2.FONT_HERSHEY_COMPLEX, 0.75, (50, 10, 24), 2)
+            else:
+                cv2.rectangle(frame, (int(t_temp.bbox[0]), int(t_temp.bbox[1])), (int(
+                    t_temp.bbox[2]), int(t_temp.bbox[3])), (50, 10, 24), 2)
 
         widthK = (width/trashWidth)
         heightK = (height/trashHeight)
@@ -631,7 +633,7 @@ def main(_argv):
             jsonRes.players.append(jsonObj)
 
             cv2.ellipse(field, center, (10, 10), 0,
-                        0, 360, (255, 0, 0) if t_temp.track.get_class() == "ref" else t_temp.currColor, -1)
+                        0, 360, (0, 0, 0) if t_temp.track.get_class() == "ref" else t_temp.currColor, -1)
 
             cv2.ellipse(field, center, (12, 12), 0,
                         0, 360, (0, 0, 0), 4)

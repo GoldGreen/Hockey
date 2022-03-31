@@ -38,7 +38,7 @@ namespace Hockey.Client.Main.ViewModels
         [Reactive] public bool FirstColorPicked { get; set; }
 
         [Reactive] public string SecondTeamName { get; set; }
-        [Reactive] public Color SecondTeamColor { get; set; } = Color.FromRgb(155, 155, 93);
+        [Reactive] public Color SecondTeamColor { get; set; } = Color.FromRgb(93, 155, 155);
         [Reactive] public bool SecondColorPicked { get; set; }
 
         [Reactive] public ImageSource FrameSource { get; set; }
@@ -139,16 +139,16 @@ namespace Hockey.Client.Main.ViewModels
                         FirstTeamName = FirstTeamName,
                         FirstTeamColor = new byte[]
                         {
+                            FirstTeamColor.R,
                             FirstTeamColor.B,
-                            FirstTeamColor.G,
-                            FirstTeamColor.R
+                            FirstTeamColor.G
                         },
                         SecondTeamName = SecondTeamName,
                         SecondTeamColor = new byte[]
                         {
-                            SecondTeamColor.B,
+                            SecondTeamColor.R,
                             SecondTeamColor.G,
-                            SecondTeamColor.R
+                            SecondTeamColor.B
                         }
                     }
                 ),
@@ -211,7 +211,7 @@ namespace Hockey.Client.Main.ViewModels
                 {
                     int[] bbox = player.Bbox.Select(x => (int)x).ToArray();
 
-                    if (player.Team is not null)
+                    if (!string.IsNullOrEmpty(player.Team))
                     {
                         Cv2.PutText(frame,
                                     player.Team,
@@ -222,7 +222,10 @@ namespace Hockey.Client.Main.ViewModels
                                     2);
                     }
 
-                    Cv2.Rectangle(frame, new(bbox[0], bbox[1]), new(bbox[2], bbox[3]), ColorByTeam(player.Team), 2);
+                    Color color = player.Team == FirstTeamName ? FirstTeamColor : player.Team == SecondTeamName ? SecondTeamColor : Brushes.Black.Color;
+
+                    Cv2.Rectangle(frame, new(bbox[0], bbox[1]), new(bbox[2], bbox[3]), new(0, 0, 0), 3);
+                    Cv2.Rectangle(frame, new(bbox[0], bbox[1]), new(bbox[2], bbox[3]), new(color.B, color.G, color.R), 2);
                 }
             }
         }
@@ -231,14 +234,14 @@ namespace Hockey.Client.Main.ViewModels
         {
             using var minimap = _minimap.Clone();
 
-            double width = minimap.Width;
-            double height = minimap.Height;
+            double width = minimap.Width * 0.9;
+            double height = minimap.Height * 0.8;
 
             if (Model.FramesInfo != null && Model.FramesInfo.TryGetValue(MinimapFrameNum, out var players))
             {
-                foreach (var player in players.Where(x => x.Type == "player" || x.Type == "keeper"))
+                foreach (var player in players)
                 {
-                    Color color = player.Team == FirstTeamName ? FirstTeamColor : SecondTeamColor;
+                    Color? color = player.Team == FirstTeamName ? FirstTeamColor : player.Team == SecondTeamName ? SecondTeamColor : null;
 
                     Cv2.Ellipse(minimap,
                                new(player.FieldCoordinate[0] * width, player.FieldCoordinate[1] * height),
@@ -249,35 +252,21 @@ namespace Hockey.Client.Main.ViewModels
                                new(0, 0, 0),
                                5);
 
-                    Cv2.Ellipse(minimap,
-                                new(player.FieldCoordinate[0] * width, player.FieldCoordinate[1] * height),
-                                new(50, 50),
-                                0,
-                                0,
-                                360,
-                                new(color.B, color.G, color.R),
-                                -1);
+                    if (color != null)
+                    {
+                        Cv2.Ellipse(minimap,
+                                    new(player.FieldCoordinate[0] * width, player.FieldCoordinate[1] * height),
+                                    new(50, 50),
+                                    0,
+                                    0,
+                                    360,
+                                    new(color.Value.B, color.Value.G, color.Value.R),
+                                    -1);
+                    }
                 }
             }
 
             MinimapSource = minimap.ToBitmapSource();
-        }
-
-
-        private Scalar ColorByTeam(string team)
-        {
-            if (team == FirstTeamName)
-            {
-                return new Scalar(255, 0, 0);
-            }
-            else if (team == SecondTeamName)
-            {
-                return new Scalar(0, 255, 0);
-            }
-            else
-            {
-                return new Scalar(0, 0, 0);
-            }
         }
 
         private void OpenVideo()
